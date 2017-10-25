@@ -13,4 +13,4 @@ YR_08 = datetime.datetime.strptime('2007-01-01', '%Y-%m-%d').date()
 YR_10 = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d').date()
 YR_15 = datetime.datetime.strptime('2015-01-01', '%Y-%m-%d').date()
 
-LAST_DATE = datetime.datetime.strptime('2017-10-15', '%Y-%m-%d').date()
+LAST_DATE = datetime.datetime.strptime('2017-10-22', '%Y-%m-%d').date()
