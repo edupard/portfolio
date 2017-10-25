@@ -3,21 +3,33 @@ import datetime
 import math
 
 WIKI_TIINGO_TICKERS_MAP = {
-    'EK' : 'KODK',
-    'SLE' : 'HSH'
+    'EK': 'KODK',
+    'SLE': 'HSH'
 }
+
 
 def rename_wiki_ticker_to_tiingo_ticker(wiki_ticker):
     tiingo_ticker = WIKI_TIINGO_TICKERS_MAP.get(wiki_ticker, wiki_ticker)
     return tiingo_ticker.replace('.', '-')
 
+
 def get_snp_hitorical_components_tickers():
     snp_mask_df = pd.read_csv('data/snp/snp_mask.csv')
-    return snp_mask_df.ticker.unique()
+    wiki_tickers = snp_mask_df.ticker.unique()
+    tiingo_tickers = []
+    for wiki_ticker in wiki_tickers:
+        tiingo_tickers.append(rename_wiki_ticker_to_tiingo_ticker(wiki_ticker))
+    return tiingo_tickers
+
 
 def get_snp_tickers():
     snp_df = pd.read_csv('data/snp/snp.csv')
-    return snp_df.ticker.unique()
+    wiki_tickers = snp_df.ticker.unique()
+    tiingo_tickers = []
+    for wiki_ticker in wiki_tickers:
+        tiingo_tickers.append(rename_wiki_ticker_to_tiingo_ticker(wiki_ticker))
+    return tiingo_tickers
+
 
 def generate_snp_mask():
     snp_df = pd.read_csv('data/snp/snp.csv')

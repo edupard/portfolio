@@ -99,19 +99,20 @@ class DownloadWorker:
                 break
             elif m.message_type == MessageType.TASK:
                 ticker = m.payload
-                dir_name = get_config().get_dir_name(ticker)
-                file_name = get_config().get_data_file_name(ticker)
-                dump_file_name = get_config().get_dump_file_name(ticker)
+                try:
+                    dir_name = get_config().get_dir_name(ticker)
+                    file_name = get_config().get_data_file_name(ticker)
+                    dump_file_name = get_config().get_dump_file_name(ticker)
 
-                print('dowloading prices for %s' % ticker)
-                json = get_historical_data(ticker, get_config().DATA_BEG, get_config().DATA_END)
-                if json is None or len(json) == 0:
-                    print('no data for %s' % ticker)
-                    continue
-                else:
-                    print('writing prices for %s' % ticker)
-                    create_dir(dir_name)
-                    try:
+                    print('dowloading prices for %s' % ticker)
+                    json = get_historical_data(ticker, get_config().DATA_BEG, get_config().DATA_END)
+                    if json is None or len(json) == 0:
+                        print('no data for %s' % ticker)
+                        continue
+                    else:
+                        print('writing prices for %s' % ticker)
+                        create_dir(dir_name)
+
                         with open(file_name, 'w', newline='') as f:
                             writer = csv.writer(f)
                             writer.writerow(
@@ -136,29 +137,30 @@ class DownloadWorker:
                         print('prices for %s stored' % ticker)
 
 
-                    except:
-                        print('download failed for %s' % ticker)
-                        remove_dir(dir_name)
-                        continue
 
-                print('preprocessing prices for %s' % ticker)
-                df = pd.read_csv(file_name)
-                df.date = pd.to_datetime(df.date, format='%Y-%m-%d')
-                df.date = df.date.apply(lambda x: x.timestamp()).astype(float)
-                df = df.sort_values(['date'], ascending=[True])
 
-                np.savez(dump_file_name,
-                         ts=df.date.values,
-                         o=df.open.values,
-                         h=df.high.values,
-                         l=df.low.values,
-                         c=df.close.values,
-                         v=df.volume.values,
-                         a_o=df.adjOpen.values,
-                         a_h=df.adjHigh.values,
-                         a_l=df.adjLow.values,
-                         a_c=df.adjClose.values,
-                         a_v=df.adjVolume.values,
-                         )
+                    print('preprocessing prices for %s' % ticker)
+                    df = pd.read_csv(file_name)
+                    df.date = pd.to_datetime(df.date, format='%Y-%m-%d')
+                    df.date = df.date.apply(lambda x: x.timestamp()).astype(float)
+                    df = df.sort_values(['date'], ascending=[True])
 
-            self.manager.notify(self)
+                    np.savez(dump_file_name,
+                             ts=df.date.values,
+                             o=df.open.values,
+                             h=df.high.values,
+                             l=df.low.values,
+                             c=df.close.values,
+                             v=df.volume.values,
+                             a_o=df.adjOpen.values,
+                             a_h=df.adjHigh.values,
+                             a_l=df.adjLow.values,
+                             a_c=df.adjClose.values,
+                             a_v=df.adjVolume.values,
+                             )
+                except:
+                    print('download failed for %s' % ticker)
+                    remove_dir(dir_name)
+                    continue
+                finally:
+                    self.manager.notify(self)

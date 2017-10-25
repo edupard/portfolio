@@ -1,11 +1,18 @@
 import os
 from net.train_config import TrainConfig
 from net.eval_config import EvalConfig
+import shutil
 
 def get_weights_path(train_config: TrainConfig):
     folder_path = 'data/nets/%s/weights' % train_config.DATA_FOLDER
     weights_path_prefix = '%s/%s' % (folder_path, 'weights')
     return folder_path, weights_path_prefix
+
+def get_train_progress_path(train_config: TrainConfig):
+    folder_path = 'data/nets/%s' % train_config.DATA_FOLDER
+    file_path = '%s/train_progress.csv' % (folder_path)
+    return folder_path, file_path
+
 
 
 def get_prediction_path(train_config: TrainConfig, eval_config: EvalConfig, ticker, epoch):
@@ -20,4 +27,7 @@ def create_dir(dir_name):
 
 
 def remove_dir(dir_name):
-    os.removedirs(dir_name)
+    try:
+        shutil.rmtree(dir_name)
+    except:
+        pass
