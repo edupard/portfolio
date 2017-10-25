@@ -31,11 +31,11 @@ def get_config_instance():
 
 def get_train_config_petri():
     config = get_config_instance()
-    config.DATA_FOLDER = 'data/nets/petri'
+    config.DATA_FOLDER = 'petri'
     config.DROPOUT_KEEP_RATE = 1.0
     config.LSTM_LAYERS = 3
-    config.LSTM_LAYER_SIZE = 5
-    config.FC_LAYERS = [30]
+    config.LSTM_LAYER_SIZE = 30
+    config.FC_LAYERS = [100]
     config.BPTT_STEPS = 100
     config.BEG = dates.YR_00
     config.END = dates.YR_07

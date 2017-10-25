@@ -3,16 +3,15 @@ import tensorflow.contrib.rnn as rnn
 import numpy as np
 
 from net.train_config import TrainConfig
-from utils.folders import create_dir
+import utils.folders as folders
 
 
 class NetShiva(object):
     def __init__(self, train_config: TrainConfig):
         self.config = train_config
 
-        self._WEIGHTS_FOLDER_PATH = '%s/weights' % self.config.DATA_FOLDER
-        create_dir(self._WEIGHTS_FOLDER_PATH)
-        self._WEIGHTS_PATH = '%s/%s' % (self._WEIGHTS_FOLDER_PATH, 'weights')
+        self._WEIGHTS_FOLDER_PATH, self._WEIGHTS_PREFIX_PATH = folders.get_weights_path(self.config)
+        folders.create_dir(self._WEIGHTS_FOLDER_PATH)
 
         print('creating neural network...')
         with tf.Graph().as_default() as graph:
@@ -53,7 +52,8 @@ class NetShiva(object):
 
             with tf.name_scope('loss'):
                 diff = self.returns - tf.expand_dims(labels, 2)
-                self.cost = tf.reduce_sum(tf.multiply(tf.square(diff), tf.expand_dims(mask, 2))) / tf.reduce_sum(mask)
+                self.sse = sse = tf.reduce_sum(tf.multiply(tf.square(diff), tf.expand_dims(mask, 2)))
+                self.cost = sse / tf.reduce_sum(mask)
                 self.optimizer = tf.train.AdamOptimizer()
                 self.vars = tf.trainable_variables()
                 self.grads_and_vars = self.optimizer.compute_gradients(self.cost, var_list=self.vars)
@@ -82,24 +82,23 @@ class NetShiva(object):
         feed_dict = {self.input: input, self.labels: labels, self.mask: mask, self.keep_prob: 1.0}
         self._fill_feed_dict(feed_dict, state)
 
-        new_state, cost, returns = self.sess.run((self.new_state, self.cost, self.returns), feed_dict)
-        return new_state, cost, returns
+        new_state, sse, returns = self.sess.run((self.new_state, self.sse, self.returns), feed_dict)
+        return new_state, sse, returns
 
     def fit(self, state, input, labels, mask):
         feed_dict = {self.input: input, self.labels: labels, self.mask: mask, self.keep_prob: self.config.DROPOUT_KEEP_RATE}
         self._fill_feed_dict(feed_dict, state)
-        new_state, cost, returns, _ = self.sess.run((self.new_state, self.cost, self.returns, self.train), feed_dict)
-        return new_state, cost, returns
+        new_state, sse, returns, _ = self.sess.run((self.new_state, self.sse, self.returns, self.train), feed_dict)
+        return new_state, sse, returns
 
     def save_weights(self, epoch):
         print('saving %d epoch weights' % epoch)
-        self.saver.save(self.sess, self._WEIGHTS_PATH, global_step=epoch, write_meta_graph=False)
+        self.saver.save(self.sess, self._WEIGHTS_PREFIX_PATH, global_step=epoch, write_meta_graph=False)
 
-    def init_weights(self, epoch):
-        if epoch != 0:
-            print('loading %d epoch weights' % epoch)
-            self.saver.restore(self.sess, "%s-%d" % (self._WEIGHTS_PATH, epoch))
-        else:
-            print('initializing weights...')
+    def init_weights(self):
+        print('initializing weights...')
+        self.sess.run(self.init)
 
-            self.sess.run(self.init)
+    def load_weights(self, epoch):
+        print('loading %d epoch weights' % epoch)
+        self.saver.restore(self.sess, "%s-%d" % (self._WEIGHTS_PREFIX_PATH, epoch))

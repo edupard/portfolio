@@ -1,10 +1,13 @@
 import utils.dates as dates
-import utils.folders as folders
+
+TEMP_FOLDER = 'temp'
+DATA_FOLDER = 'data'
+
 
 class Config(object):
     DATA_BEG = dates.YR_80
     DATA_END = dates.LAST_DATE
-    FOLDER = folders.DATA_FOLDER
+    FOLDER = DATA_FOLDER
 
     def get_dir_name(self, ticker):
         return '%s/stocks/%s' % (self.FOLDER, ticker)

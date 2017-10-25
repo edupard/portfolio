@@ -100,6 +100,9 @@ class DataSource(object):
     def get_moy_f(self, b, e):
         return self.f_moy[b: e]
 
+    def get_ts(self, b, e):
+        return self.ts[b: e]
+
     def get_data_range(self, beg, end):
         beg_ts = get_date_timestamp(beg)
         end_ts = get_date_timestamp(end)
