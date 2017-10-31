@@ -50,4 +50,3 @@ def get_train_config_petri():
     ]
     config.LABEL_FUNCTION = DataSource.get_5dy_f
     return config
-

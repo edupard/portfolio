@@ -6,7 +6,7 @@ import net.train_config as net_config
 from stock_data.download import download_data
 from stock_data.datasource import DataSource
 from net.train_config import get_train_config_petri
-from net.eval_config import get_eval_config_petri_train_set
+from net.eval_config import get_eval_config_petri_train_set, get_eval_config_petri_test_set, get_eval_config_petri_whole_set
 from net.train import train_epoch
 from net.predict import predict
 import pandas as pd
@@ -16,7 +16,20 @@ from utils.utils import date_from_timestamp
 from utils.csv import create_csv, append_csv
 
 
+def save_predictions(predictions_history, dss, train_config, eval_config, epoch):
+    for ds, p_h in zip(dss, predictions_history):
+        if p_h is None:
+            continue
+        folder_path, file_path = folders.get_prediction_path(train_config, eval_config, ds.ticker, epoch)
+        folders.create_dir(folder_path)
+
+        df = pd.DataFrame({'ts': p_h[:, 0], 'prediction': p_h[:, 1], 'observation': p_h[:, 2]})
+        df['ticker'] = ds.ticker
+        df['date'] = df['ts'].apply(date_from_timestamp)
+        df.to_csv(file_path, index=False)
+
 class NetTest(unittest.TestCase):
+
     def test_download_data(self):
         tickers = snp.get_snp_hitorical_components_tickers()
         download_data(tickers, num_workers=20)
@@ -76,18 +89,12 @@ class NetTest(unittest.TestCase):
             avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
             print("Avg loss: %.4f%% " % (avg_loss * 100))
 
-            for ds, p_h in zip(dss, predictions_history):
-                if p_h is None:
-                    continue
-                folder_path, file_path = folders.get_prediction_path(train_config, eval_config, ds.ticker, e)
-                folders.create_dir(folder_path)
-
-                df = pd.DataFrame({'ts': p_h[:, 0], 'prediction': p_h[:, 1], 'observation': p_h[:, 2]})
-                df.to_csv(file_path, index=False)
+            save_predictions(predictions_history, dss, train_config, eval_config, e)
 
             print("Training %d epoch..." % e)
             avg_loss = train_epoch(net, dss, train_config)
             print("Avg loss: %.4f%% " % (avg_loss * 100))
+
 
         net.save_weights(600)
 
@@ -113,22 +120,21 @@ class NetTest(unittest.TestCase):
             weak_predictors.append(ticker)
             dss.append(dss)
 
+        BASE_FOLDER = train_config.DATA_FOLDER
+
         for ticker, ds in zip(weak_predictors, dss):
             print("Fitting %s" % ticker)
 
-            train_config.DATA_FOLDER = "%s/%s" % (train_config.DATA_FOLDER, ticker)
+            train_config.DATA_FOLDER = "%s/%s" % (BASE_FOLDER, ticker)
 
             train_dss = [DataSource(ticker)]
 
             net = NetShiva(train_config)
 
             # eval_config = get_eval_config_petri_train_set()
-
             folder_path, file_path = folders.get_train_progress_path(train_config)
             folders.create_dir(folder_path)
             create_csv(file_path, ['loss'])
-
-
             net.init_weights()
             for e in range(600):
                 net.save_weights(e)
@@ -136,15 +142,8 @@ class NetTest(unittest.TestCase):
                 # print("Evaluating %d epoch..." % e)
                 # avg_loss, predictions_history = predict(net, train_dss, train_config, eval_config)
                 # print("Avg loss: %.4f%% " % (avg_loss * 100))
-                #
-                # for ds, p_h in zip(train_dss, predictions_history):
-                #     if p_h is None:
-                #         continue
-                #     folder_path, file_path = folders.get_prediction_path(train_config, eval_config, ds.ticker, e)
-                #     folders.create_dir(folder_path)
-                #
-                #     df = pd.DataFrame({'ts': p_h[:, 0], 'prediction': p_h[:, 1], 'observation': p_h[:, 2]})
-                #     df.to_csv(file_path, index=False)
+
+                # save_predictions(predictions_history, dss, train_config, eval_config, e)
 
                 print("Training %d epoch..." % e)
                 avg_loss = train_epoch(net, train_dss, train_config)
@@ -152,11 +151,12 @@ class NetTest(unittest.TestCase):
 
                 append_csv(file_path, [avg_loss])
 
-
             net.save_weights(600)
+
 
     def test_eval(self):
         ticker = 'AAPL'
+        EPOCH = 600
 
         train_config = get_train_config_petri()
         train_config.DATA_FOLDER = "%s/%s" % (train_config.DATA_FOLDER, ticker)
@@ -169,19 +169,75 @@ class NetTest(unittest.TestCase):
                 continue
 
         net = NetShiva(train_config)
-        net.load_weights(600)
+        net.load_weights(EPOCH)
 
         eval_config = get_eval_config_petri_train_set()
 
-        print("Evaluating %d epoch..." % 600)
+        print("Evaluating %d epoch..." % EPOCH)
+        avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+        print("Avg loss: %.4f%% " % (avg_loss * 100))
+        save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
+
+    def test_eval_universal_strategy(self):
+        EPOCH = 585
+        ticker = 'UNIVERSAL_NET'
+
+        train_config = get_train_config_petri()
+        train_config.DATA_FOLDER = "%s/%s" % (train_config.DATA_FOLDER, ticker)
+
+        dss = []
+        for ticker in snp.get_snp_hitorical_components_tickers():
+            try:
+                dss.append(DataSource(ticker))
+            except:
+                continue
+
+        net = NetShiva(train_config)
+        net.load_weights(EPOCH)
+
+        eval_config = get_eval_config_petri_test_set()
+
+
+        print("Evaluating %d epoch..." % EPOCH)
         avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
         print("Avg loss: %.4f%% " % (avg_loss * 100))
 
-        for ds, p_h in zip(dss, predictions_history):
-            if p_h is None:
-                continue
-            folder_path, file_path = folders.get_prediction_path(train_config, eval_config, ds.ticker, 600)
-            folders.create_dir(folder_path)
+        save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
 
-            df = pd.DataFrame({'ts': p_h[:, 0], 'prediction': p_h[:, 1], 'observation': p_h[:, 2]})
-            df.to_csv(file_path, index=False)
+    def test_eval_weak_predictors(self):
+        EPOCH = 600
+
+        tickers = snp.get_snp_hitorical_components_tickers()
+
+        tickers_to_exclude = ['CPWR', 'BTU', 'MIL', 'PGN']
+
+        dss = []
+        for ticker in tickers:
+            if ticker in tickers_to_exclude:
+                continue
+            try:
+                dss.append(DataSource(ticker))
+            except:
+                continue
+
+        train_config = get_train_config_petri()
+        eval_config = get_eval_config_petri_whole_set()
+        net = NetShiva(train_config)
+
+        BASE_FOLDER = train_config.DATA_FOLDER
+
+        for ticker in tickers:
+            try:
+                print("Evaluating %s weak predictor..." % ticker)
+
+                train_config.DATA_FOLDER = "%s/%s" % (BASE_FOLDER, ticker)
+                net.update_config(train_config)
+
+                net.load_weights(EPOCH)
+
+                avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+                print("Avg loss: %.4f%% " % (avg_loss * 100))
+
+                save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
+            except:
+                pass

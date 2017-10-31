@@ -8,10 +8,7 @@ import utils.folders as folders
 
 class NetShiva(object):
     def __init__(self, train_config: TrainConfig):
-        self.config = train_config
-
-        self._WEIGHTS_FOLDER_PATH, self._WEIGHTS_PREFIX_PATH = folders.get_weights_path(self.config)
-        folders.create_dir(self._WEIGHTS_FOLDER_PATH)
+        self.update_config(train_config)
 
         print('creating neural network...')
         with tf.Graph().as_default() as graph:
@@ -62,6 +59,12 @@ class NetShiva(object):
             self.init = tf.global_variables_initializer()
             self.saver = tf.train.Saver(tf.global_variables(), max_to_keep=None)
         self.sess = tf.Session(graph=graph)
+
+    def update_config(self, train_config: TrainConfig):
+        self.config = train_config
+
+        self._WEIGHTS_FOLDER_PATH, self._WEIGHTS_PREFIX_PATH = folders.get_weights_path(self.config)
+        folders.create_dir(self._WEIGHTS_FOLDER_PATH)
 
     def zero_state(self, batch_size):
         zero_state = ()
