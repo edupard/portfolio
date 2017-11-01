@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import os
 
 from net.net_shiva import NetShiva
 import net.train_config as net_config
@@ -241,3 +242,100 @@ class NetTest(unittest.TestCase):
                 save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
             except:
                 pass
+
+
+    def adaptive_prediction(self):
+        EPOCH = 600
+        PRED_HORIZON = 5
+        LR = 0.1
+
+        tickers = snp.get_snp_hitorical_components_tickers()
+
+        train_config = get_train_config_petri()
+        eval_config = get_eval_config_petri_whole_set()
+
+        BASE_FOLDER = train_config.DATA_FOLDER
+
+        for ticker in tickers:
+            print("Generating adaptive predictions for %s" % ticker)
+
+            weak_predictions = []
+            for weak_predictor in tickers:
+                train_config.DATA_FOLDER = "%s/%s" % (BASE_FOLDER, weak_predictor)
+                _, prediction_path = folders.get_prediction_path(train_config, eval_config, ticker, EPOCH)
+                if os.path.exists(prediction_path):
+                    weak_predictions.append((weak_predictor, prediction_path))
+
+            weak_predictors_num = len(weak_predictions)
+
+            dates = None
+            ts = None
+            weak_predictions_pred = []
+            obs = None
+
+            if weak_predictors_num > 0:
+                print("Parsing %d weak predictions" % weak_predictors_num)
+                for weak_predictor, prediction_path in weak_predictions:
+                    df = pd.read_csv(prediction_path)
+                    if dates is None:
+                        dates = df.date.values
+                    if ts is None:
+                        ts = df.ts.values
+                    if obs is None:
+                        obs = df.observation.values
+                    weak_predictions_pred.append(df.prediction.values)
+            else:
+                print("No predictions for stock")
+                continue
+
+
+
+            weigths = np.full((weak_predictors_num), 1 / weak_predictors_num)
+            errors = np.zeros((weak_predictors_num))
+            predictions = np.zeros((weak_predictors_num))
+            data_points = len(dates)
+            strong_predictions = np.zeros((data_points))
+
+            for i in range(data_points):
+                for j in range(weak_predictors_num):
+                    predictions[j] = weak_predictions_pred[j][i]
+                    if i >= PRED_HORIZON:
+                        known_moment = i - PRED_HORIZON
+                        errors[j] = abs(weak_predictions_pred[j][known_moment]- obs[known_moment])
+                # update weights
+                lr = LR
+                while True:
+                    err_mean = np.mean(errors)
+                    err_std = np.std(errors)
+                    dw = -lr * (errors - err_mean)
+                    updated_weights = weigths + dw
+                    non_negative_updated_weights = np.max(0, updated_weights)
+                    z = np.sum(non_negative_updated_weights)
+                    remaining_weak = np.nonzero(non_negative_updated_weights)[0].shape[0]
+                    print("%s remaining weak predictors: %d" % (date.strftime('%Y-%m-%d'), remaining_weak))
+                    weigths = non_negative_updated_weights
+
+                # make prediction
+                strong_prediction = np.sum(weigths * predictions)
+                strong_predictions[i] = strong_prediction
+
+            e = strong_predictions - obs
+            se = e * e
+            mse = np.mean(se)
+            avg_error = math.sqrt(mse)
+            print("%s MSE: %.4f%% !!!" % (ticker, avg_error * 100))
+
+            df = pd.DataFrame({'ts': ts, 'prediction': strong_predictions, 'observation': obs, 'date': dates})
+            df['ticker'] = ticker
+
+            folder_path, file_path = folders.get_adaptive_prediction_path("ADAPTIVE", eval_config, ticker, EPOCH)
+            folders.create_dir(folder_path)
+            df.to_csv(file_path, index=False)
+
+
+
+
+
+
+
+
