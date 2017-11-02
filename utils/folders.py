@@ -16,6 +16,7 @@ def get_train_progress_path(train_config: TrainConfig):
 def get_adaptive_prediction_path(ADAPTIVE_ALGO_NAME, eval_config, ticker, epoch):
     folder_path = 'data/eval/%s/%s/%s/prediction' % (ADAPTIVE_ALGO_NAME, eval_config.DATA_FOLDER, ticker)
     file_path = '%s/%s_%s.csv' % (folder_path, ticker, epoch)
+    return folder_path, file_path
 
 def get_prediction_path(train_config: TrainConfig, eval_config: EvalConfig, ticker, epoch):
     folder_path = 'data/eval/%s/%s/%s/prediction' % (train_config.DATA_FOLDER, eval_config.DATA_FOLDER, ticker)

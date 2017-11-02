@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import os
+import math
 
 from net.net_shiva import NetShiva
 import net.train_config as net_config
@@ -244,10 +245,14 @@ class NetTest(unittest.TestCase):
                 pass
 
 
-    def adaptive_prediction(self):
+    def test_adaptive_prediction(self):
         EPOCH = 600
         PRED_HORIZON = 5
-        LR = 0.1
+
+        LR = 1000.0
+        SMOOTH_FACTOR = 0.05
+
+        WEAK_PREDICTOR_TO_AVERAGE = 5
 
         tickers = snp.get_snp_hitorical_components_tickers()
 
@@ -295,40 +300,58 @@ class NetTest(unittest.TestCase):
             predictions = np.zeros((weak_predictors_num))
             data_points = len(dates)
             strong_predictions = np.zeros((data_points))
+            predictors_num = np.zeros((data_points))
 
             for i in range(data_points):
                 for j in range(weak_predictors_num):
                     predictions[j] = weak_predictions_pred[j][i]
                     if i >= PRED_HORIZON:
                         known_moment = i - PRED_HORIZON
-                        errors[j] = abs(weak_predictions_pred[j][known_moment]- obs[known_moment])
+                        errors[j] = SMOOTH_FACTOR * abs(weak_predictions_pred[j][known_moment]- obs[known_moment]) + (1 - SMOOTH_FACTOR) * errors[j]
+
+                # sorted_errors = np.sort(errors)
+                # print("%s top 10 weak predictors: %s" % (dates[i], sorted_errors[:10]))
+
+
                 # update weights
-                lr = LR
-                while True:
-                    err_mean = np.mean(errors)
-                    err_std = np.std(errors)
-                    dw = -lr * (errors - err_mean)
-                    updated_weights = weigths + dw
-                    non_negative_updated_weights = np.max(0, updated_weights)
-                    z = np.sum(non_negative_updated_weights)
-                    remaining_weak = np.nonzero(non_negative_updated_weights)[0].shape[0]
-                    print("%s remaining weak predictors: %d" % (date.strftime('%Y-%m-%d'), remaining_weak))
-                    weigths = non_negative_updated_weights
+                err_mean = np.mean(errors)
+                err_std = np.std(errors)
+                dw = -LR * (errors - err_mean)
+                updated_weights = weigths + dw
+                negative_mask = updated_weights <=0
+                updated_weights[negative_mask] = 0
+                z = np.sum(updated_weights)
+                updated_weights = updated_weights / z
+                weigths = updated_weights
+
+                # second variant
+                sorted_err_idx = np.argsort(errors)
+                weigths[:] = 0
+                weigths[sorted_err_idx[:WEAK_PREDICTOR_TO_AVERAGE]] = 1/WEAK_PREDICTOR_TO_AVERAGE
+
+
+                remaining_weak = np.nonzero(weigths)[0].shape[0]
+                predictors_num[i] = remaining_weak
+                # print("%s remaining weak predictors: %d" % (dates[i], remaining_weak))
+
+
 
                 # make prediction
                 strong_prediction = np.sum(weigths * predictions)
                 strong_predictions[i] = strong_prediction
 
+            print("%s avg num predictors: %.2f" % (ticker, np.mean(predictors_num)))
             e = strong_predictions - obs
             se = e * e
             mse = np.mean(se)
             avg_error = math.sqrt(mse)
             print("%s MSE: %.4f%% !!!" % (ticker, avg_error * 100))
 
+
             df = pd.DataFrame({'ts': ts, 'prediction': strong_predictions, 'observation': obs, 'date': dates})
             df['ticker'] = ticker
 
-            folder_path, file_path = folders.get_adaptive_prediction_path("ADAPTIVE", eval_config, ticker, EPOCH)
+            folder_path, file_path = folders.get_adaptive_prediction_path("ADAPTIVE_1000_0", eval_config, ticker, EPOCH)
             folders.create_dir(folder_path)
             df.to_csv(file_path, index=False)
 
