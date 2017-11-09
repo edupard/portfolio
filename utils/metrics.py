@@ -4,7 +4,7 @@ from utils.utils import date_from_timestamp
 
 def get_eq_params(capital, ts):
     BEG = date_from_timestamp(ts[0])
-    END = date_from_timestamp(ts[1])
+    END = date_from_timestamp(ts[-1])
     years = (END - BEG).days / 365
     dd = get_draw_down(capital, False)
     rets = capital[1:] - capital[:-1]

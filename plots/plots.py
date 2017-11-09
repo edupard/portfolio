@@ -31,5 +31,15 @@ def plot_eq(caption, eq, ts):
     draw_grid(ax)
     format_time_labels(ax, fmt=DDMMMYY_FMT)
     ax.set_title(caption)
+    fig.subplots_adjust(bottom=0.15)
     ax.plot_date(dt, eq, color='b', fmt='-')
     return fig
+
+def show_plots():
+    plt.show(True)
+
+def iof():
+    plt.ioff()
+
+def close_fig(fig):
+    plt.close(fig)

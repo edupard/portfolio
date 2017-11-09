@@ -13,9 +13,24 @@ def get_train_progress_path(train_config: TrainConfig):
     file_path = '%s/train_progress.csv' % (folder_path)
     return folder_path, file_path
 
+def get_adaptive_compressed_predictions_path(ADAPTIVE_ALGO_NAME):
+    folder_path = 'data/eval/%s' % ADAPTIVE_ALGO_NAME
+    file_path = '%s/predictions.npz' % folder_path
+    return folder_path, file_path
+
 def get_adaptive_prediction_path(ADAPTIVE_ALGO_NAME, eval_config, ticker, epoch):
     folder_path = 'data/eval/%s/%s/%s/prediction' % (ADAPTIVE_ALGO_NAME, eval_config.DATA_FOLDER, ticker)
     file_path = '%s/%s_%s.csv' % (folder_path, ticker, epoch)
+    return folder_path, file_path
+
+def get_adaptive_plot_path(ADAPTIVE_ALGO_NAME, ticker, epoch):
+    folder_path = 'data/eval/%s' % (ADAPTIVE_ALGO_NAME)
+    file_path = '%s/%s_%d.png' % (folder_path, ticker, epoch)
+    return folder_path, file_path
+
+def get_adaptive_stat_path(ADAPTIVE_ALGO_NAME, epoch):
+    folder_path = 'data/eval/%s' % (ADAPTIVE_ALGO_NAME)
+    file_path = '%s/%d_stat.csv' % (folder_path, epoch)
     return folder_path, file_path
 
 def get_prediction_path(train_config: TrainConfig, eval_config: EvalConfig, ticker, epoch):

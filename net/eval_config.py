@@ -16,6 +16,7 @@ class EvalConfig(object):
     BPTT_STEPS = 100
     POS_STRATEGY = PosStrategy.PERIODIC
     TRADES_FREQ = None
+    SLIPPAGE = 0.0005
 
 _config_proto = EvalConfig()
 
@@ -29,6 +30,7 @@ def get_eval_config_petri_train_set():
     config.END = dates.YR_07
     config.POS_STRATEGY = PosStrategy.MON_FRI
     config.TRADES_FREQ = None
+    config.SLIPPAGE = 0.0005
 
     return config
 
@@ -39,6 +41,7 @@ def get_eval_config_petri_test_set():
     config.END = dates.LAST_DATE
     config.POS_STRATEGY = PosStrategy.MON_FRI
     config.TRADES_FREQ = None
+    config.SLIPPAGE = 0.0005
 
     return config
 
@@ -49,6 +52,8 @@ def get_eval_config_petri_whole_set():
     config.END = dates.LAST_DATE
     config.POS_STRATEGY = PosStrategy.MON_FRI
     config.TRADES_FREQ = None
+    # config.SLIPPAGE = 0
+    config.SLIPPAGE = 0.0005
 
     return config
 

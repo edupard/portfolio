@@ -31,6 +31,33 @@ def get_snp_tickers():
     return tiingo_tickers
 
 
+class SnpHistory(object):
+    def __init__(self, map):
+        self.map = map
+
+    def check_if_belongs(self, ticker, date):
+        if ticker not in self.map:
+            return False
+        intervals = self.map[ticker]
+        for b, e in intervals:
+            if b <= date <= e:
+                return True
+        return False
+
+
+def get_snp_history() -> SnpHistory:
+    df = pd.read_csv('data/snp/snp_mask.csv')
+    map = {}
+    for idx, row in df.iterrows():
+        _from = datetime.datetime.strptime(row['from'], '%Y-%m-%d').date()
+        _to = datetime.datetime.strptime(row['to'], '%Y-%m-%d').date()
+        _ticker = row['ticker']
+        if _ticker not in map:
+            map[_ticker] = []
+        map[_ticker].append((_from, _to))
+    return SnpHistory(map)
+
+
 def generate_snp_mask():
     snp_df = pd.read_csv('data/snp/snp.csv')
     snp_df.added = pd.to_datetime(snp_df.added, format='%d.%m.%Y').dt.date

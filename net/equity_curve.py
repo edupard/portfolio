@@ -8,6 +8,110 @@ import datetime
 import math
 from utils.utils import is_same_week
 
+class HoldMonFriPredictMonPosStrategyV1():
+    def __init__(self):
+        self.in_pos = False
+        self.has_prediction = False
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = False
+        close_pos = False
+        open_pos = False
+        # check if we need to close position
+        if self.in_pos:
+            if next_trading_date is None or not is_same_week(date, next_trading_date):
+                close_pos = True
+                self.in_pos = False
+        if not self.in_pos:
+            if next_trading_date is not None:
+                if is_same_week(date, next_trading_date):
+                    predict = True
+                    self.has_prediction = True
+                    if self.has_prediction:
+                        open_pos = True
+                        self.in_pos = True
+
+        return predict, close_pos, open_pos
+
+
+class HoldMonFriPosStrategyV1():
+    def __init__(self):
+        self.in_pos = False
+        self.has_prediction = False
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = False
+        close_pos = False
+        open_pos = False
+        # check if we predict
+        if next_trading_date is not None and not is_same_week(date, next_trading_date):
+            predict = True
+            self.has_prediction = True
+        # check if we need to close position
+        if self.in_pos:
+            if next_trading_date is None or not is_same_week(date, next_trading_date):
+                close_pos = True
+                self.in_pos = False
+        if not self.in_pos:
+            if next_trading_date is not None:
+                if is_same_week(date, next_trading_date):
+                    if self.has_prediction:
+                        open_pos = True
+                        self.in_pos = True
+
+        return predict, close_pos, open_pos
+
+class HoldFriFriPosStrategyV1():
+    def __init__(self):
+        self.in_pos = False
+        self.has_prediction = False
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = False
+        close_pos = False
+        open_pos = False
+        # check if we predict
+        if next_trading_date is not None and not is_same_week(date, next_trading_date):
+            predict = True
+            self.has_prediction = True
+        # check if we need to close position
+        if self.in_pos:
+            if next_trading_date is None or not is_same_week(date, next_trading_date):
+                close_pos = True
+                self.in_pos = False
+        if not self.in_pos:
+            if next_trading_date is not None:
+                if not is_same_week(date, next_trading_date):
+                    if self.has_prediction:
+                        open_pos = True
+                        self.in_pos = True
+
+        return predict, close_pos, open_pos
+
+class PeriodicPosStrategyV1():
+    def __init__(self, TRADES_FREQ):
+        self.data_idx = 0
+        self.TRADES_FREQ = TRADES_FREQ
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = False
+        open_pos = False
+        close_pos = False
+
+        if self.data_idx % self.TRADES_FREQ == 0:
+            predict = True
+            close_pos = True
+            open_pos = True
+
+        self.data_idx += 1
+
+        return predict, open_pos, close_pos
+
+
+
+
+
+
 
 class HoldMonFriPosStrategy():
     def __init__(self):
@@ -22,9 +126,10 @@ class HoldMonFriPosStrategy():
                 close_pos = True
                 self.in_pos = False
         if not self.in_pos:
-            if next_trading_date is not None and not is_same_week(date, next_trading_date):
-                open_pos = True
-                self.in_pos = True
+            if next_trading_date is not None:
+                if is_same_week(date, next_trading_date):
+                    open_pos = True
+                    self.in_pos = True
 
         return close_pos, open_pos
 
@@ -42,7 +147,7 @@ class HoldFriFriPosStrategy():
                 self.in_pos = False
         if not self.in_pos:
             if next_trading_date is not None:
-                if is_same_week(date, next_trading_date):
+                if not is_same_week(date, next_trading_date):
                     open_pos = True
                     self.in_pos = True
 
@@ -68,6 +173,7 @@ class PeriodicPosStrategy():
 
 def calc_pl(pos,curr_px,pos_px, slippage):
     return pos * (curr_px * (1 - math.copysign(1, pos) * slippage) - pos_px * (1 + math.copysign(1, pos) * slippage))
+
 
 def build_eq(ds: DataSource, predictions, eval_config: EvalConfig):
     beg_data_idx, end_data_idx = ds.get_data_range(eval_config.BEG, eval_config.END)
@@ -113,7 +219,7 @@ def build_eq(ds: DataSource, predictions, eval_config: EvalConfig):
         urpl = calc_pl(pos,curr_px,pos_px, eval_config.SLIPPAGE)
         nlv = cash + urpl
 
-        eq[data_idx] = nlv
+        eq[idx] = nlv
 
     return eq, ds.get_ts(beg_data_idx, end_data_idx)
 
