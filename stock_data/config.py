@@ -18,6 +18,9 @@ class Config(object):
     def get_dump_file_name(self, ticker):
         return '%s/%s.npz' % (self.get_dir_name(ticker), ticker)
 
+    def get_predictions_file_name(self, ticker):
+        return '%s/%s_predictions.npz' % (self.get_dir_name(ticker), ticker)
+
 _config = Config()
 
 def get_config():

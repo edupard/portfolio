@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import os
 
 from utils.utils import get_date_timestamp, date_from_timestamp
 from stock_data.config import get_config
@@ -122,3 +124,30 @@ class DataSource(object):
         if end_idxs[0].shape[0] > 0:
             end_idx = end_idxs[0][-1] + 1
         return beg_idx, end_idx
+
+    def load_weak_predictions(self, weak_predictors, b, e):
+        predictions_file_name = get_config().get_predictions_file_name(self.ticker)
+
+        if os.path.exists(predictions_file_name):
+            data = np.load(predictions_file_name)
+            self.predictions = data['predictions']
+        else:
+            self.predictions = np.zeros((len(weak_predictors), self.ts.shape[0]))
+            for weak_predictor, idx in zip(weak_predictors, range(len(weak_predictors))):
+
+                prediction_path = 'data/eval/petri/%s/eval/%s/prediction/%s_600.csv' % (weak_predictor, self.ticker, self.ticker)
+                # train_config.DATA_FOLDER = "%s/%s" % (BASE_FOLDER, weak_predictor)
+                # _, prediction_path = folders.get_prediction_path(train_config, eval_config, ticker, EPOCH)
+
+                if os.path.exists(prediction_path):
+                    df = pd.read_csv(prediction_path)
+                    self.predictions[idx,b:e] = df.prediction.values
+            np.savez(predictions_file_name,
+                     predictions=self.predictions)
+
+    def unload_weak_predictions(self):
+        self.predictions = None
+
+    def get_weak_predictions(self,b, e):
+        return self.predictions[:,b: e]
+

@@ -8,6 +8,7 @@ def get_weights_path(train_config: TrainConfig):
     weights_path_prefix = '%s/%s' % (folder_path, 'weights')
     return folder_path, weights_path_prefix
 
+
 def get_train_progress_path(train_config: TrainConfig):
     folder_path = 'data/nets/%s' % train_config.DATA_FOLDER
     file_path = '%s/train_progress.csv' % (folder_path)

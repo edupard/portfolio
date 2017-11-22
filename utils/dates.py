@@ -9,7 +9,7 @@ YR_05 = datetime.datetime.strptime('2005-01-01', '%Y-%m-%d').date()
 # crisis start
 YR_07 = datetime.datetime.strptime('2007-01-01', '%Y-%m-%d').date()
 # crisis mid point
-YR_08 = datetime.datetime.strptime('2007-01-01', '%Y-%m-%d').date()
+YR_08 = datetime.datetime.strptime('2008-01-01', '%Y-%m-%d').date()
 YR_10 = datetime.datetime.strptime('2010-01-01', '%Y-%m-%d').date()
 YR_15 = datetime.datetime.strptime('2015-01-01', '%Y-%m-%d').date()
 

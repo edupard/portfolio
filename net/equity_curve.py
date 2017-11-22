@@ -8,6 +8,56 @@ import datetime
 import math
 from utils.utils import is_same_week
 
+class HoldAlwaysAndRebalance():
+
+    def __init__(self):
+        self.in_pos = False
+        self.has_prediction = False
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = True
+        close_pos = True
+        open_pos = True
+        if next_trading_date is None:
+            open_pos = False
+            predict = False
+        else:
+            if not is_same_week(date, next_trading_date):
+                open_pos = False
+                predict = False
+        return predict, close_pos, open_pos
+
+
+class HoldMonMonPosStrategyV1():
+    def __init__(self):
+        self.in_pos = False
+        self.has_prediction = False
+
+    def decide(self, date: datetime.date, next_trading_date: datetime.datetime):
+        predict = False
+        close_pos = False
+        open_pos = False
+        # check if we need to close position
+        if self.in_pos:
+            if next_trading_date is not None:
+                if is_same_week(date, next_trading_date):
+                    close_pos = True
+                    self.in_pos = False
+
+        if not self.in_pos:
+            if next_trading_date is not None:
+                if is_same_week(date, next_trading_date):
+                    predict = True
+                    self.has_prediction = True
+                    if self.has_prediction:
+                        open_pos = True
+                        self.in_pos = True
+
+        return predict, close_pos, open_pos
+
+
+
+
 class HoldMonFriPredictMonPosStrategyV1():
     def __init__(self):
         self.in_pos = False
@@ -87,6 +137,8 @@ class HoldFriFriPosStrategyV1():
                         self.in_pos = True
 
         return predict, close_pos, open_pos
+
+
 
 class PeriodicPosStrategyV1():
     def __init__(self, TRADES_FREQ):
