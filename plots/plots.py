@@ -35,6 +35,20 @@ def plot_eq(caption, eq, ts):
     ax.plot_date(dt, eq, color='b', fmt='-')
     return fig
 
+def create_eq_ax(caption):
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    draw_grid(ax)
+    format_time_labels(ax, fmt=DDMMMYY_FMT)
+    ax.set_title(caption)
+    fig.subplots_adjust(bottom=0.15)
+    return fig, ax
+
+
+def plot_serie(ax, eq, ts):
+    dt = build_time_axis(ts)
+    ax.plot_date(dt, eq, fmt='-')
+
 def show_plots():
     plt.show(True)
 

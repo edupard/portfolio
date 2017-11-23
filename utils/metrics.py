@@ -2,14 +2,19 @@ import numpy as np
 import math
 from utils.utils import date_from_timestamp
 
-def get_eq_params(capital, ts):
+def get_eq_params(capital, ts, recap = False):
     BEG = date_from_timestamp(ts[0])
     END = date_from_timestamp(ts[-1])
     years = (END - BEG).days / 365
-    dd = get_draw_down(capital, False)
-    rets = capital[1:] - capital[:-1]
-    sharpe = get_sharpe_ratio(rets, years)
-    y_avg = (capital[-1] - capital[0]) / years
+    dd = get_draw_down(capital, recap)
+    if recap:
+        rets = (capital[1:] - capital[:-1]) / capital[:-1]
+        sharpe = get_sharpe_ratio(rets, years)
+        y_avg = (capital[-1] - capital[0]) / capital[0] / years
+    else:
+        rets = capital[1:] - capital[:-1]
+        sharpe = get_sharpe_ratio(rets, years)
+        y_avg = (capital[-1] - capital[0]) / years
     return dd, sharpe, y_avg
 
 def get_draw_down(c, recap):

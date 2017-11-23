@@ -1,43 +1,27 @@
 import unittest
 import numpy as np
 import os
-import math
 import datetime
 
-from net.net_shiva import NetShiva
-from net.net_softmax import NetSoftmax
-import net.train_config as net_config
-from stock_data.download import download_data
 from stock_data.datasource import DataSource
-from net.train_config import get_train_config_petri
 from net.eval_config import get_eval_config_petri_train_set, get_eval_config_petri_test_set, \
     get_eval_config_petri_whole_set
-from net.train_config import get_train_config_stacking
-from net.train_config import get_train_config_bagging
-from net.train import train_epoch, train_stack_epoch
-from net.predict import predict
-from net.predict import stacking_net_predict
 import pandas as pd
 import utils.folders as folders
 import snp.snp as snp
 from utils.utils import date_from_timestamp, get_date_timestamp
-from utils.csv import create_csv, append_csv
-from net.equity_curve import build_eq
 import plots.plots as plots
 from utils.metrics import get_eq_params
 import utils.dates as known_dates
 from net.equity_curve import PosStrategy, HoldFriFriPosStrategyV1, HoldMonFriPosStrategyV1, PeriodicPosStrategyV1, \
     HoldMonFriPredictMonPosStrategyV1, HoldAlwaysAndRebalance, HoldMonMonPosStrategyV1
-from utils.utils import is_same_week
-from bma.bma import Bma
-from bma.bma_analytical import BmaAnalytical
+import quandl_data.quandl_data as quandl_data
 
 
 class PortfolioTest(unittest.TestCase):
 
     def test_ma_curve(self):
         EPOCH = 600
-        PRED_HORIZON = 5
 
         eval_config = get_eval_config_petri_whole_set()
 
@@ -47,6 +31,81 @@ class PortfolioTest(unittest.TestCase):
 
 
         ALGO_NAME = "MODEL_AVERAGING"
+
+        es_tickers = quandl_data.get_es_tickers()
+        if os.path.exists("data/es.npz"):
+            data = np.load("data/es.npz")
+            es_prices = data['es_prices']
+            es_trading_mask = data['es_trading_mask']
+        else:
+            total_es_tickers = len(es_tickers)
+            es_prices = np.zeros((total_es_tickers, total_days))
+            es_trading_mask = np.full((total_es_tickers, total_days), False)
+            es_ds = []
+            for (t, _), ticker_idx in zip(es_tickers, range(total_es_tickers)):
+                ds = quandl_data.EsDataSouce(t)
+                es_ds.append(ds)
+                close_pxs = ds.get_close_px()
+                dates = ds.get_dates()
+                if close_pxs is None:
+                    continue
+                data_len = close_pxs.shape[0]
+                _prev_idx = 0
+                price = None
+                for i in range(data_len):
+                    date = dates[dates.index[i]]
+                    if eval_config.BEG <= date <= eval_config.END:
+                        _idx = (date - eval_config.BEG).days
+                        price = close_pxs[i]
+                        # if _prev_idx == 0:
+                        #     _prev_idx = _idx
+                        es_prices[ticker_idx, _prev_idx: _idx + 1] = price
+                        es_trading_mask[ticker_idx, _idx] = True
+                        _prev_idx = _idx + 1
+                if price is not None:
+                    es_prices[ticker_idx, _prev_idx:] = price
+            np.savez("data/es.npz",
+                     es_prices=es_prices,
+                     es_trading_mask=es_trading_mask,
+                     )
+
+        vx_tickers = quandl_data.get_vx_tickers()
+        if os.path.exists("data/vx.npz"):
+            data = np.load("data/vx.npz")
+            vx_prices = data['vx_prices']
+            vx_trading_mask = data['vx_trading_mask']
+        else:
+            total_vx_tickers = len(vx_tickers)
+            vx_prices = np.zeros((total_vx_tickers, total_days))
+            vx_trading_mask = np.full((total_vx_tickers, total_days), False)
+            vx_ds = []
+            for (t, _), ticker_idx in zip(vx_tickers, range(total_vx_tickers)):
+                ds = quandl_data.VxDataSouce(t)
+                vx_ds.append(ds)
+                close_pxs = ds.get_close_px()
+                dates = ds.get_dates()
+                if close_pxs is None:
+                    continue
+                data_len = close_pxs.shape[0]
+                _prev_idx = 0
+                price = None
+                for i in range(data_len):
+                    date = dates[dates.index[i]]
+                    if eval_config.BEG <= date <= eval_config.END:
+                        _idx = (date - eval_config.BEG).days
+                        price = close_pxs[i]
+                        # if _prev_idx == 0:
+                        #     _prev_idx = _idx
+                        vx_prices[ticker_idx, _prev_idx: _idx + 1] = price
+                        vx_trading_mask[ticker_idx, _idx] = True
+                        _prev_idx = _idx + 1
+                if price is not None:
+                    vx_prices[ticker_idx, _prev_idx:] = price
+            np.savez("data/vx.npz",
+                     vx_prices=vx_prices,
+                     vx_trading_mask=vx_trading_mask,
+                     )
+
 
         snp_history = snp.get_snp_history()
 
@@ -117,16 +176,114 @@ class PortfolioTest(unittest.TestCase):
                          predictions=predictions
                          )
 
+        CV_TS = get_date_timestamp(known_dates.YR_07)
+        ts = np.zeros(total_days)
+
+        for i in range(total_days):
+            date = eval_config.BEG + datetime.timedelta(days=i)
+            ts[i] = get_date_timestamp(date)
+
+        after_2007_mask = ts >= CV_TS
+
+
         traded_stocks_per_day = trading_mask[:, :].sum(0)
         trading_day_mask = traded_stocks_per_day >= 30
+        trading_day_mask &= after_2007_mask
         trading_day_idxs = np.nonzero(trading_day_mask)[0]
 
-        cash = 0
-        pos = np.zeros((total_tickers))
-        index_pos = np.zeros((total_tickers))
-        pos_px = np.zeros((total_tickers))
-        eq = np.zeros(total_days)
-        ts = np.zeros(total_days)
+        es_trader_futures_per_day = es_trading_mask[:, :].sum(0)
+        es_trading_day_mask = es_trader_futures_per_day >= 1
+        es_trading_day_mask &= after_2007_mask
+        es_trading_day_idxs = np.nonzero(es_trading_day_mask)[0]
+        total_es_trading_days = es_trading_day_idxs.shape[0]
+
+        vx_trader_futures_per_day = vx_trading_mask[:, :].sum(0)
+        vx_trading_day_mask = vx_trader_futures_per_day >= 1
+        vx_trading_day_mask &= after_2007_mask
+        vx_trading_day_idxs = np.nonzero(vx_trading_day_mask)[0]
+        total_vx_trading_days = vx_trading_day_idxs.shape[0]
+
+
+        es_active_contract_idx = np.full((total_days), -1, dtype=np.int)
+        es_close_pos_contract_idx = np.full((total_days), -1, dtype=np.int)
+        es_open_pos_contract_idx = np.full((total_days), -1, dtype=np.int)
+        vx_active_contract_idx = np.full((total_days), -1, dtype=np.int)
+        vx_close_pos_contract_idx = np.full((total_days), -1, dtype=np.int)
+        vx_open_pos_contract_idx = np.full((total_days), -1, dtype=np.int)
+        es_active_idx = -1
+        vx_active_idx = -1
+        for i in range(total_days):
+            es_mask = es_trading_mask[:, i]
+            es_idxs = np.nonzero(es_mask)[0]
+            if es_idxs.shape[0] > 0:
+                new_es_active_idx = es_idxs[0]
+                if new_es_active_idx < es_active_idx:
+                    _debug = 0
+                es_active_idx = new_es_active_idx
+            es_active_contract_idx[i] = es_active_idx
+
+            vx_mask = vx_trading_mask[:, i]
+            vx_idxs = np.nonzero(vx_mask)[0]
+            if vx_idxs.shape[0] > 0:
+                new_vx_active_idx = vx_idxs[0]
+                if new_vx_active_idx < vx_active_idx:
+                    _debug = 0
+                vx_active_idx = new_vx_active_idx
+            vx_active_contract_idx[i] = vx_active_idx
+
+        es_close_pos_contract_idx[:] = es_active_contract_idx[:]
+        es_open_pos_contract_idx[:] = es_active_contract_idx[:]
+
+        vx_close_pos_contract_idx[:] = vx_active_contract_idx[:]
+        vx_open_pos_contract_idx[:] = vx_active_contract_idx[:]
+
+        ES_ROLL_DAYS = 1
+        VX_ROLL_DAYS = 1
+
+        prev_day_idx = None
+        for i in range(total_es_trading_days - ES_ROLL_DAYS):
+            day_idx = es_trading_day_idxs[i]
+            if prev_day_idx is None:
+                prev_day_idx = day_idx
+            roll_day_idx = es_trading_day_idxs[i + ES_ROLL_DAYS]
+            es_close_pos_contract_idx[prev_day_idx:day_idx + 1] = es_active_contract_idx[roll_day_idx]
+            prev_day_idx = day_idx + 1
+
+        prev_day_idx = None
+        for i in range(total_vx_trading_days - VX_ROLL_DAYS):
+            day_idx = vx_trading_day_idxs[i]
+            if prev_day_idx is None:
+                prev_day_idx = day_idx
+            roll_day_idx = vx_trading_day_idxs[i + VX_ROLL_DAYS]
+            vx_close_pos_contract_idx[prev_day_idx:day_idx + 1] = vx_active_contract_idx[roll_day_idx]
+            prev_day_idx = day_idx + 1
+
+        ES_ROLL_DAYS += 1
+        VX_ROLL_DAYS += 1
+
+        prev_day_idx = None
+        for i in range(total_es_trading_days - ES_ROLL_DAYS):
+            day_idx = es_trading_day_idxs[i]
+            if prev_day_idx is None:
+                prev_day_idx = day_idx
+            roll_day_idx = es_trading_day_idxs[i + ES_ROLL_DAYS]
+            es_open_pos_contract_idx[prev_day_idx:day_idx + 1] = es_active_contract_idx[roll_day_idx]
+            prev_day_idx = day_idx + 1
+
+        prev_day_idx = None
+        for i in range(total_vx_trading_days - VX_ROLL_DAYS):
+            day_idx = vx_trading_day_idxs[i]
+            if prev_day_idx is None:
+                prev_day_idx = day_idx
+            roll_day_idx = vx_trading_day_idxs[i + VX_ROLL_DAYS]
+            vx_open_pos_contract_idx[prev_day_idx:day_idx + 1] = vx_active_contract_idx[roll_day_idx]
+            prev_day_idx = day_idx + 1
+
+
+
+
+        def calc_pl_simple(pos, curr_px, pos_px, slippage = 0):
+            return pos * (curr_px * (1 - np.sign(pos) * slippage) - pos_px * (1 + np.sign(pos) * slippage))
 
         def calc_pl(pos, curr_px, pos_px, slippage):
             return np.sum(pos * (curr_px * (1 - np.sign(pos) * slippage) - pos_px * (1 + np.sign(pos) * slippage)))
@@ -144,141 +301,226 @@ class PortfolioTest(unittest.TestCase):
         # pos_strategy = HoldAlwaysAndRebalance()
         # pos_strategy = HoldMonMonPosStrategyV1()
 
+        class RollPosStrategy(object):
+
+            def decide(self, close_contract_idx, open_contract_idx):
+                if close_contract_idx != open_contract_idx:
+                    return True, True
+                return False, False
+
+        es_pos_strategy = RollPosStrategy()
+        vx_pos_strategy = RollPosStrategy()
+        VX_LAST_TRADING_DATE_BEFORE_RESCALE = datetime.datetime.strptime('2007-03-23', '%Y-%m-%d').date()
+
         SELECTION = 5
+        RECAP = False
 
-        td_idx = 0
-        for i in range(total_days):
-            date = eval_config.BEG + datetime.timedelta(days=i)
-            curr_px = prices[:, i]
-            tradeable = trading_mask[:, i]
-            in_snp = snp_mask[:, i]
-            trading_day = trading_day_mask[i]
+        NET_BET = 0
+        ES_BET = 1
+        VX_BET = 0
 
-            if trading_day:
-                next_trading_date = None
-                if td_idx + 1 < trading_day_idxs.shape[0]:
-                    next_trading_date = eval_config.BEG + datetime.timedelta(days=trading_day_idxs[td_idx + 1].item())
+        # GS = [(0,-10,-10),(0,-100,-100)]
+        # GS = [(0, -100, -100), (0, -10, -10)]
+        # GS = [(1, 0, 0),(0,-1,0),(0,0,-1)]
+        # GS = [(1, 0, -1)]
 
-                predict, close_pos, open_pos = pos_strategy.decide(date, next_trading_date)
+        # GS = []
+        # for i in np.arange(0, 101, 10):
+        #     for j in np.arange(-100,101,10):
+        #         for k in np.arange(-100,101,10):
+        #             if i == 0 and j == 0 and k == 0:
+        #                 continue
+        #             NET_BET = i
+        #             ES_BET = j
+        #             VX_BET = k
+        #             GS.append((NET_BET, ES_BET, VX_BET))
 
-                if predict:
-                    prediction = predictions[:, i]
+        GS = []
+        for j in np.arange(-400, 401, 10):
+            for k in np.arange(-150, 101, 10):
+                if i == 0 and j == 0 and k == 0:
+                    continue
+                NET_BET = 100
+                ES_BET = j
+                VX_BET = k
+                GS.append((NET_BET, ES_BET, VX_BET))
 
-                if close_pos:
-                    rpl = calc_pl(pos, curr_px, pos_px, eval_config.SLIPPAGE)
-                    rpl += calc_pl(index_pos, curr_px, pos_px, 0)
+        HIDE_PLOT = True
+
+        if HIDE_PLOT:
+            plots.iof()
+
+        fig = None
+        ax = None
+
+        for NET_BET, ES_BET, VX_BET in GS:
+            linear_combination = "NET_%d_ES_%d_VX_%d" % (NET_BET, ES_BET, VX_BET)
+
+            Z = abs(NET_BET) + abs(ES_BET) + abs(VX_BET)
+            NET_BET /= Z
+            ES_BET /= Z
+            VX_BET /= Z
+
+            cash = 1
+            pos = np.zeros((total_tickers))
+            pos_px = np.zeros((total_tickers))
+            eq = np.zeros(total_days)
+            es_pos = 0
+            es_pos_px = 0
+            vx_pos = 0
+            vx_pos_px = 0
+
+            td_idx = 0
+            for i in range(total_days):
+                date = eval_config.BEG + datetime.timedelta(days=i)
+
+                es_trading_day = es_trading_day_mask[i]
+
+                es_close_contract_idx = es_close_pos_contract_idx[i]
+                es_open_contract_idx = es_open_pos_contract_idx[i]
+
+
+                es_close_px = es_prices[es_close_contract_idx, i]
+                es_open_px = es_prices[es_open_contract_idx, i]
+
+                es_close_pos = False
+                es_open_pos = False
+
+                if es_trading_day:
+                    es_close_pos, es_open_pos = es_pos_strategy.decide(es_close_contract_idx, es_open_contract_idx)
+
+                if es_close_pos:
+                    rpl = calc_pl_simple(es_pos, es_close_px, es_pos_px)
                     cash += rpl
-                    pos[:] = 0
-                    index_pos[:] = 0
-                if open_pos:
+                    es_pos = 0
+                if es_open_pos:
+                    if RECAP:
+                        es_pos = abs(ES_BET) * cash / es_open_px * np.sign(ES_BET)
+                    else:
+                        es_pos = abs(ES_BET) / es_open_px * np.sign(ES_BET)
+                    es_pos_px = es_open_px
+                    es_close_px = es_open_px
 
-                    # long_pos_mask = tradeable & in_snp
-                    #
-                    # prediction_sorted = np.sort(prediction[long_pos_mask])
-                    # long_bound_idx = max(-SELECTION // 2, -prediction_sorted.shape[0])
-                    # long_bound = prediction_sorted[long_bound_idx]
-                    # prediction_pos_mask = prediction >= long_bound
-                    # long_pos_mask &= prediction_pos_mask
-                    #
-                    # short_pos_mask = tradeable & in_snp
-                    #
-                    # prediction_sorted = np.sort(prediction[short_pos_mask])
-                    # short_bound_idx = min(SELECTION // 2, prediction_sorted.shape[0])
-                    # short_bound = prediction_sorted[short_bound_idx]
-                    # prediction_pos_mask = prediction <= short_bound
-                    # short_pos_mask &= prediction_pos_mask
-                    #
-                    # long_num_stks = np.sum(long_pos_mask)
-                    # pos[long_pos_mask] = 0.5 / long_num_stks / curr_px[long_pos_mask]
-                    #
-                    # short_num_stks = np.sum(short_pos_mask)
-                    # pos[short_pos_mask] = 0.5 / short_num_stks / curr_px[short_pos_mask]
+                if date == datetime.datetime.strptime('2007-04-13', '%Y-%m-%d').date():
+                    _debug = 0
 
 
+                vx_trading_day = vx_trading_day_mask[i]
 
-                    pos_mask = tradeable & in_snp
+                vx_close_contract_idx = vx_close_pos_contract_idx[i]
+                vx_open_contract_idx = vx_open_pos_contract_idx[i]
 
-                    prediction_sorted = np.sort(np.abs(prediction[pos_mask]))
-                    bound_idx = max(-SELECTION, -prediction_sorted.shape[0])
-                    bound = prediction_sorted[bound_idx]
-                    prediction_pos_mask = prediction >= bound
-                    prediction_pos_mask |= prediction <= -bound
-                    pos_mask &= prediction_pos_mask
+                vx_close_px = vx_prices[vx_close_contract_idx, i]
+                if vx_tickers[vx_close_contract_idx][0] == 'VXJ2007' and date > VX_LAST_TRADING_DATE_BEFORE_RESCALE:
+                    vx_close_px *= 10
 
-                    num_stks = np.sum(pos_mask)
-                    pos[pos_mask] = 1 / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
+                vx_open_px = vx_prices[vx_open_contract_idx, i]
+                vx_close_pos = False
+                vx_open_pos = False
+
+                if vx_trading_day:
+                    vx_close_pos, vx_open_pos = vx_pos_strategy.decide(vx_close_contract_idx, vx_open_contract_idx)
+
+                if vx_close_pos:
+                    rpl = calc_pl_simple(vx_pos, vx_close_px, vx_pos_px)
+                    cash += rpl
+                    vx_pos = 0
+                if vx_open_pos:
+                    if RECAP:
+                        vx_pos = abs(VX_BET) * cash / vx_open_px * np.sign(VX_BET)
+                    else:
+                        vx_pos = abs(VX_BET) / vx_open_px * np.sign(VX_BET)
+                    vx_pos_px = vx_open_px
+                    vx_close_px = vx_open_px
+
+                curr_px = prices[:, i]
+                tradeable = trading_mask[:, i]
+                in_snp = snp_mask[:, i]
+                trading_day = trading_day_mask[i]
+
+                if trading_day:
+                    next_trading_date = None
+                    if td_idx + 1 < trading_day_idxs.shape[0]:
+                        next_trading_date = eval_config.BEG + datetime.timedelta(days=trading_day_idxs[td_idx + 1].item())
+
+                    predict, close_pos, open_pos = pos_strategy.decide(date, next_trading_date)
+
+                    if predict:
+                        prediction = predictions[:, i]
+
+                    if close_pos:
+                        rpl = calc_pl(pos, curr_px, pos_px, eval_config.SLIPPAGE)
+                        cash += rpl
+                        pos[:] = 0
+                    if open_pos:
+                        pos_mask = tradeable & in_snp
+                        prediction_sorted = np.sort(np.abs(prediction[pos_mask]))
+                        bound_idx = max(-SELECTION, -prediction_sorted.shape[0])
+                        bound = prediction_sorted[bound_idx]
+                        prediction_pos_mask = prediction >= bound
+                        prediction_pos_mask |= prediction <= -bound
+                        pos_mask &= prediction_pos_mask
+
+                        num_stks = np.sum(pos_mask)
+                        if RECAP:
+                            pos[pos_mask] = NET_BET * cash / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
+                        else:
+                            pos[pos_mask] = NET_BET / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
+
+                        pos_px = curr_px
+
+                    td_idx += 1
+
+                urpl = calc_pl(pos, curr_px, pos_px, eval_config.SLIPPAGE)
+                es_urpl = calc_pl_simple(es_pos, es_close_px, es_pos_px)
+                vx_urpl = calc_pl_simple(vx_pos, vx_close_px, vx_pos_px)
+                nlv = cash + urpl + es_urpl + vx_urpl
+
+                eq[i] = nlv
+                ts[i] = get_date_timestamp(date)
+
+            # plot eq
+            folder_path, file_path = folders.get_adaptive_plot_path(ALGO_NAME, linear_combination, EPOCH)
+            folders.create_dir(folder_path)
+
+            fig = plots.plot_eq("total", eq[after_2007_mask], ts[after_2007_mask])
+            fig.savefig(file_path)
+
+            # if fig is None:
+            #     fig, ax = plots.create_eq_ax("equity curve")
+            #
+            # plots.plot_serie(ax, eq[after_2007_mask], ts[after_2007_mask])
 
 
-                    # prediction_sorted = np.sort(prediction[pos_mask])
-                    # bound_idx = min(SELECTION -1, prediction_sorted.shape[0] - 1)
-                    # bound = prediction_sorted[bound_idx]
-                    # prediction_pos_mask = prediction <= min(bound, 0)
-                    # pos_mask &= prediction_pos_mask
+            if HIDE_PLOT:
+                plots.close_fig(fig)
 
-                    # prediction_sorted = np.sort(prediction[pos_mask])
-                    # bound_idx = max(-SELECTION, -prediction_sorted.shape[0])
-                    # bound = prediction_sorted[bound_idx]
-                    # prediction_pos_mask = prediction >= bound
-                    # pos_mask &= prediction_pos_mask
+            test = False
+            train = False
 
+            test_idxs = np.nonzero(ts > CV_TS)[0]
+            if test_idxs.shape[0] > 0:
+                test = True
+            train_idxs = np.nonzero(ts <= CV_TS)[0]
+            if train_idxs.shape[0] > 0:
+                train = True
 
+            test_dd = 0
+            test_sharpe = 0
+            test_y_avg = 0
+            train_dd = 0
+            train_sharpe = 0
+            train_y_avg = 0
 
-                    # num_stks = np.sum(pos_mask)
-                    # pos[pos_mask] = 0.5 / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
-                    #
-                    # index_pos_mask = tradeable & in_snp
-                    #
-                    # num_stks = np.sum(index_pos_mask)
-                    # index_pos[index_pos_mask] = 1 / num_stks / curr_px[index_pos_mask]
+            train = False
 
-                    # num_stks = np.sum(pos_mask)
-                    # pos[pos_mask] = 0.5 / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
-                    #
-                    # num_stks = np.sum(index_pos_mask)
-                    # pos[index_pos_mask] += -0.5 / num_stks / curr_px[index_pos_mask]
+            # save stat
+            if test:
+                test_dd, test_sharpe, test_y_avg = get_eq_params(eq[test_idxs], ts[test_idxs], RECAP)
+                print("%s Test dd: %.2f%% y avg: %.2f%% sharpe: %.2f" % (linear_combination, test_dd * 100, test_y_avg * 100, test_sharpe))
+            if train:
+                train_dd, train_sharpe, train_y_avg = get_eq_params(eq[train_idxs], ts[train_idxs], RECAP)
+                print("%s Train dd: %.2f%% y avg: %.2f%% sharpe: %.2f" % (linear_combination, train_dd * 100, train_y_avg * 100, train_sharpe))
 
-                    pos_px = curr_px
-                td_idx += 1
-
-            urpl = calc_pl(pos, curr_px, pos_px, eval_config.SLIPPAGE)
-            urpl += calc_pl(index_pos, curr_px, pos_px, 0)
-            nlv = cash + urpl
-
-            eq[i] = nlv
-            ts[i] = get_date_timestamp(date)
-
-        # plot eq
-        folder_path, file_path = folders.get_adaptive_plot_path(ALGO_NAME, "0", EPOCH)
-        folders.create_dir(folder_path)
-
-        fig = plots.plot_eq("total", eq, ts)
-        fig.savefig(file_path)
-        # plots.close_fig(fig)
-
-        CV_TS = get_date_timestamp(known_dates.YR_07)
-
-        test = False
-        train = False
-
-        test_idxs = np.nonzero(ts > CV_TS)[0]
-        if test_idxs.shape[0] > 0:
-            test = True
-        train_idxs = np.nonzero(ts <= CV_TS)[0]
-        if train_idxs.shape[0] > 0:
-            train = True
-
-        test_dd = 0
-        test_sharpe = 0
-        test_y_avg = 0
-        train_dd = 0
-        train_sharpe = 0
-        train_y_avg = 0
-
-        # save stat
-        if test:
-            test_dd, test_sharpe, test_y_avg = get_eq_params(eq[test_idxs], ts[test_idxs])
-        if train:
-            train_dd, train_sharpe, train_y_avg = get_eq_params(eq[train_idxs], ts[train_idxs])
-        print("Train dd: %.2f%% y avg: %.2f%% sharpe: %.2f" % (train_dd * 100, train_y_avg * 100, train_sharpe))
-        print("Test dd: %.2f%% y avg: %.2f%% sharpe: %.2f" % (test_dd * 100, test_y_avg * 100, test_sharpe))
-        plots.show_plots()
+        if not HIDE_PLOT:
+            plots.show_plots()
