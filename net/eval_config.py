@@ -53,7 +53,7 @@ def get_eval_config_petri_whole_set():
     config.POS_STRATEGY = PosStrategy.MON_FRI
     config.TRADES_FREQ = None
     # config.SLIPPAGE = 0
-    config.SLIPPAGE = 0.0005
+    config.SLIPPAGE = 0.001
 
     return config
 

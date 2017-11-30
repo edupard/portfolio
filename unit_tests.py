@@ -26,8 +26,8 @@ from net.equity_curve import build_eq
 import plots.plots as plots
 from utils.metrics import get_eq_params
 import utils.dates as known_dates
-from net.equity_curve import PosStrategy, HoldFriFriPosStrategyV1, HoldMonFriPosStrategyV1, PeriodicPosStrategyV1, \
-    HoldMonFriPredictMonPosStrategyV1, HoldAlwaysAndRebalance, HoldMonMonPosStrategyV1
+from net.equity_curve import PosStrategy, HoldFriFriPosStrategy, HoldMonFriPosStrategy, PeriodicPosStrategy, \
+    HoldMonFriPredictMonPosStrategy, HoldAlwaysAndRebalance, HoldMonMonPosStrategy
 from utils.utils import is_same_week
 from bma.bma import Bma
 from bma.bma_analytical import BmaAnalytical
@@ -206,12 +206,16 @@ class NetTest(unittest.TestCase):
 
             train_dss = [DataSource(ticker)]
 
-            net = NetShiva(train_config)
-
             # eval_config = get_eval_config_petri_train_set()
             folder_path, file_path = folders.get_train_progress_path(train_config)
             folders.create_dir(folder_path)
+            if os.path.exists(file_path):
+                print("Already processed")
+                continue
+
             create_csv(file_path, ['loss'])
+
+            net = NetShiva(train_config)
             net.init_weights()
             for e in range(600):
                 if e % 100 == 0:
@@ -466,17 +470,17 @@ class NetTest(unittest.TestCase):
             return np.sum(pos * (curr_px * (1 - np.sign(pos) * slippage) - pos_px * (1 + np.sign(pos) * slippage)))
 
         if eval_config.POS_STRATEGY == PosStrategy.MON_FRI:
-            pos_strategy = HoldMonFriPosStrategyV1()
+            pos_strategy = HoldMonFriPosStrategy()
         elif eval_config.POS_STRATEGY == PosStrategy.FRI_FRI:
-            pos_strategy = HoldFriFriPosStrategyV1()
+            pos_strategy = HoldFriFriPosStrategy()
         elif eval_config.POS_STRATEGY == PosStrategy.PERIODIC:
-            pos_strategy = PeriodicPosStrategyV1(eval_config.TRADES_FREQ)
+            pos_strategy = PeriodicPosStrategy(eval_config.TRADES_FREQ)
 
         # pos_strategy = HoldMonFriPredictMonPosStrategyV1()
         # pos_strategy = HoldFriFriPosStrategyV1()
         # pos_strategy = HoldMonFriPosStrategyV1()
         # pos_strategy = HoldAlwaysAndRebalance()
-        pos_strategy = HoldMonMonPosStrategyV1()
+        pos_strategy = HoldMonMonPosStrategy()
 
         SELECTION = 5
 
