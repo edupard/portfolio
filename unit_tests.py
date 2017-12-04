@@ -103,7 +103,7 @@ class NetTest(unittest.TestCase):
             net.save_weights(e)
 
             print("Evaluating %d epoch..." % e)
-            avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+            avg_loss, predictions_history, last_states = predict(net, dss, train_config, eval_config)
             print("Avg loss: %.4f%% " % (avg_loss * 100))
 
             save_predictions(predictions_history, dss, train_config, eval_config, e)
@@ -255,7 +255,7 @@ class NetTest(unittest.TestCase):
         eval_config = get_eval_config_petri_train_set()
 
         print("Evaluating %d epoch..." % EPOCH)
-        avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+        avg_loss, predictions_history, last_states = predict(net, dss, train_config, eval_config)
         print("Avg loss: %.4f%% " % (avg_loss * 100))
         save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
 
@@ -279,7 +279,7 @@ class NetTest(unittest.TestCase):
         eval_config = get_eval_config_petri_test_set()
 
         print("Evaluating %d epoch..." % EPOCH)
-        avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+        avg_loss, predictions_history, last_states = predict(net, dss, train_config, eval_config)
         print("Avg loss: %.4f%% " % (avg_loss * 100))
 
         save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)
@@ -315,7 +315,7 @@ class NetTest(unittest.TestCase):
 
                 net.load_weights(EPOCH)
 
-                avg_loss, predictions_history = predict(net, dss, train_config, eval_config)
+                avg_loss, predictions_history, last_states = predict(net, dss, train_config, eval_config)
                 print("Avg loss: %.4f%% " % (avg_loss * 100))
 
                 save_predictions(predictions_history, dss, train_config, eval_config, EPOCH)

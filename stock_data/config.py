@@ -1,6 +1,7 @@
 import utils.dates as dates
 
-TEMP_FOLDER = 'temp'
+TEMP_TOD_FOLDER = 'data/temp/tod'
+TEMP_FOLDER = 'data/temp'
 DATA_FOLDER = 'data'
 
 

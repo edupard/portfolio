@@ -31,6 +31,14 @@ def get_snp_tickers():
     return tiingo_tickers
 
 
+def get_snp_ticker_to_exchange_mapping():
+    map = {}
+    df = pd.read_csv('data/snp/snp_tickers.csv')
+    for index, row in df.iterrows():
+        map[row['ticker']] = row['exchange']
+    return map
+
+
 class SnpHistory(object):
     def __init__(self, map):
         self.map = map

@@ -112,6 +112,11 @@ class DataSource(object):
             return self.a_c[b]
         return self.a_c[b: e]
 
+    def get_a_v(self, b, e=None):
+        if e is None:
+            return self.a_v[b]
+        return self.a_v[b: e]
+
     def get_data_range(self, beg, end):
         beg_ts = get_date_timestamp(beg)
         end_ts = get_date_timestamp(end)

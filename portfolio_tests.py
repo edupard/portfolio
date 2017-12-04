@@ -317,7 +317,7 @@ class PortfolioTest(unittest.TestCase):
         vx_pos_strategy = RollPosStrategy()
         VX_LAST_TRADING_DATE_BEFORE_RESCALE = datetime.datetime.strptime('2007-03-23', '%Y-%m-%d').date()
 
-        SELECTION = 5
+        SELECTION = 500
         RECAP = False
 
         NET_BET = 0
@@ -368,7 +368,7 @@ class PortfolioTest(unittest.TestCase):
             (100, -120, -50),
         ]
 
-        # GS = [(1, 0, 0)]
+        GS = [(1, 0, 0)]
 
         HIDE_PLOT = False
 
@@ -384,7 +384,7 @@ class PortfolioTest(unittest.TestCase):
         ES_PRICE_STEP = 5
         VX_PRICE_STEP = 0.05
 
-        PRINT_PERIODIC_STAT = True
+        PRINT_PERIODIC_STAT = False
         if PRINT_PERIODIC_STAT:
             INIT_NLV = 1000000
             LEVERAGE = 1
