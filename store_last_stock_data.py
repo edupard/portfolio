@@ -7,9 +7,6 @@ import utils.utils as utils
 import stock_data.config as config
 import utils.folders as folders
 
-def convert_to_ib(ticker):
-    return ticker.replace('-', ' ')
-
 # read current px, dividends, splits
 tod_px_ds = pd.read_csv("data/tod_px_adj/px_tod.csv")
 div_ds = pd.read_csv("data/tod_px_adj/dividends.csv")
@@ -47,7 +44,7 @@ for ticker in tickers:
         # calculate ds len
         ds_len = ts.shape[0]
 
-        ib_ticker = convert_to_ib(ticker)
+        ib_ticker = utils.convert_to_ib(ticker)
 
         # get tod px
         tod_px = tod_px_ds[tod_px_ds.ticker == ib_ticker]

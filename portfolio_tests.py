@@ -317,7 +317,7 @@ class PortfolioTest(unittest.TestCase):
         vx_pos_strategy = RollPosStrategy()
         VX_LAST_TRADING_DATE_BEFORE_RESCALE = datetime.datetime.strptime('2007-03-23', '%Y-%m-%d').date()
 
-        SELECTION = 500
+        SELECTION = 5
         RECAP = False
 
         NET_BET = 0
@@ -384,11 +384,11 @@ class PortfolioTest(unittest.TestCase):
         ES_PRICE_STEP = 5
         VX_PRICE_STEP = 0.05
 
-        PRINT_PERIODIC_STAT = False
+        PRINT_PERIODIC_STAT = True
         if PRINT_PERIODIC_STAT:
             INIT_NLV = 1000000
             LEVERAGE = 1
-            RECAP = True
+            RECAP = False
             BY_QUARTER = False
 
         PRINT_WEEKLY_PL_CHANGES = False
@@ -567,6 +567,16 @@ class PortfolioTest(unittest.TestCase):
 
                     if open_pos:
                         pos_mask = tradeable & in_snp
+
+                        # #random selection
+                        # pos_idxs = np.nonzero(pos_mask)[0]
+                        # pos_idxs = np.random.choice(pos_idxs, SELECTION, replace=False)
+                        #
+                        # trade_mask = np.full(pos_mask.shape, False, dtype=np.bool)
+                        # trade_mask[pos_idxs] = True
+                        # pos_mask &= trade_mask
+
+
                         prediction_sorted = np.sort(np.abs(prediction[pos_mask]))
                         bound_idx = max(-SELECTION, -prediction_sorted.shape[0])
                         bound = prediction_sorted[bound_idx]
@@ -578,8 +588,6 @@ class PortfolioTest(unittest.TestCase):
                         if RECAP:
                             pos[pos_mask] = NET_BET * eq[i - 1] / num_stks / curr_px[pos_mask] * np.sign(
                                 prediction[pos_mask])
-                            # pos[pos_mask] = NET_BET * cash / num_stks / curr_px[pos_mask] * np.sign(
-                            #     prediction[pos_mask])
                         else:
                             pos[pos_mask] = NET_BET / num_stks / curr_px[pos_mask] * np.sign(prediction[pos_mask])
 

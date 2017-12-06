@@ -14,3 +14,6 @@ def is_same_week(date1, date2):
     if (_max - _min).days < (7 - _min.isoweekday()):
         return True
     return False
+
+def convert_to_ib(ticker):
+    return ticker.replace('-', ' ')
