@@ -14,7 +14,6 @@ BASE_FOLDER = train_config.DATA_FOLDER
 
 EPOCH = 600
 
-
 client = pymongo.MongoClient('localhost',27017)
 db = client['predictions']
 collection = db['predictions']
