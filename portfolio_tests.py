@@ -384,7 +384,7 @@ class PortfolioTest(unittest.TestCase):
         ES_PRICE_STEP = 5
         VX_PRICE_STEP = 0.05
 
-        PRINT_PERIODIC_STAT = True
+        PRINT_PERIODIC_STAT = False
         if PRINT_PERIODIC_STAT:
             INIT_NLV = 1000000
             LEVERAGE = 1

@@ -1,49 +1,29 @@
 from capm.capm_v1 import Capm
 import numpy as np
-import snp.snp as snp
 
-components = snp.get_snp_hitorical_components_tickers()
-length = len(components)
-idx = components.index('SWK')
+npz_file_name = "data/eval/dates/petri/2008-06-16.npz"
+data = np.load(npz_file_name)
 
+predictions = data['predictions']
+pos_mask = data['pos_mask']
 
-exp = np.array([0.05, -0.03])
-cov = np.array([[0.05*0.05,0.05*0.03],[0.05*0.03, 0.03 * 0.03]])
+predictions = predictions[pos_mask,:]
+abs_predictions = np.abs(predictions)
+zeros = np.zeros(abs_predictions.shape)
+abs_predictions = abs_predictions - 0.001
 
-# w = np.array([0.375, -0.625])
+cov = np.cov(predictions)
+exp = np.mean(predictions, axis=1)
 
-# portfolio_variance = np.sqrt(np.matmul(np.matmul(w.T, cov), w))
-# portfolio_return = np.matmul(exp.T, exp)
+# var = np.zeros(cov.shape)
+# for i in range(cov.shape[0]):
+#     var[i,i] = cov[i,i]
+# cov = var
 
-# w = [-0.5,-0.5]
-# print(cov)
+SELECTION = 50
+NUM_PERIODS = 48
 
-capm = Capm(2, exp, cov)
+capm = Capm(NUM_PERIODS, SELECTION, exp, cov)
 capm.init()
 w = capm.fit_weights()
-
-# i = 0
-# exit = False
-# while not exit:
-#     grads, sharpe, expectation, variance = capm.get_params(w)
-#     # grads, sharpe, expectation, variance = capm.get_params(exp, cov, w)
-#     print("Iteration: %d Sharpe: %.2f r: %.2f%% var: %.10f%%" % (i, sharpe, expectation * 100, variance * 100))
-#     print(w)
-#
-#     grads = grads[0].reshape([-1])
-#     LR = 1.0
-#     while True:
-#         if LR == 0:
-#             exit = True
-#             break
-#         _w = w - LR * grads
-#         constraint = np.sum(np.abs(_w))
-#         _w = _w / constraint
-#         _grads, _sharpe, _expectation, _variance = capm.get_params(_w)
-#         # _grads, _sharpe, _expectation, _variance = capm.get_params(exp, cov, _w)
-#         if _sharpe > sharpe:
-#             w = _w
-#             break
-#         LR = LR / 2
-#
-#     i += 1
+debug = 0
