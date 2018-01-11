@@ -27,9 +27,9 @@ import quandl_data.quandl_data as quandl_data
 
 class PortfolioTest(unittest.TestCase):
     def test_ma_curve(self):
-        client = pymongo.MongoClient()
-        db = client['predictions']
-        collection = db['predictions']
+        # client = pymongo.MongoClient()
+        # db = client['predictions']
+        # collection = db['predictions']
 
 
         EPOCH = 600
@@ -43,7 +43,7 @@ class PortfolioTest(unittest.TestCase):
         weak_predictors = []
         #dirty hack
         for ticker in tickers:
-            if os.path.exists("data/nets/bagging/%s/train_progress.csv"):
+            if os.path.exists("data/nets/bagging/%s/train_progress.csv" % ticker):
                 weak_predictors.append(ticker)
         weak_predictors_num = len(weak_predictors)
 
@@ -475,33 +475,52 @@ class PortfolioTest(unittest.TestCase):
 
                 if trading_day:
                     predict, close_pos, open_pos = pos_strategy.decide(date, next_trading_date)
+                    # if date <= datetime.datetime.strptime('2008-10-01', '%Y-%m-%d').date():
+                    #     predict = False
+                    #     close_pos = False
+                    #     open_pos = False
 
                     if predict:
                         pos_mask = tradeable & in_snp
 
                         weights = np.zeros((total_tickers))
-                        predictions = np.zeros((total_tickers, weak_predictors_num))
+
 
                         s_date = date.strftime('%Y-%m-%d')
-                        it = collection.find({"date": s_date})
-                        for doc in it:
-                            p = doc["prediction"]
-                            w_p = doc["weak_predictor"]
-                            t = doc["ticker"]
-                            try:
-                                w_p_i = weak_predictors.index(w_p)
-                                t_i = tickers.index(t)
-                                predictions[t_i,w_p_i] = p
-                            except:
-                                pass
+
+                        npz_file_name = "data/eval/dates/petri/%s.npz" % s_date
+
+                        if os.path.exists(npz_file_name):
+                            archived_data = np.load(npz_file_name)
+                            predictions = archived_data['predictions']
+                        else:
+                            predictions = np.zeros((total_tickers, weak_predictors_num))
+
+                            pred_df = pd.read_csv("data/eval/dates/petri/%s.csv" % s_date)
+
+
+                            for index, row in pred_df.iterrows():
+                                p = row.prediction
+                                w_p = row.weak_predictor
+                                t = row.ticker
+                                try:
+                                    w_p_i = weak_predictors.index(w_p)
+                                    t_i = tickers.index(t)
+                                    # w_p_i = 0
+                                    # t_i = 0
+                                    predictions[t_i, w_p_i] = p
+                                except:
+                                    pass
+                            np.savez(npz_file_name, predictions=predictions, pos_mask=pos_mask)
 
                         # now we filled all predictions - find out cov matrix
                         pos_predictions = predictions[pos_mask,:]
-                        cov = np.cov(pos_predictions, rowvar=False)
+                        cov = np.cov(pos_predictions)
                         exp = np.mean(pos_predictions, axis=1)
 
-                        stks_to_fit = np.sum(pos_mask)
-                        balancer = capm.Capm(stks_to_fit, exp, cov)
+
+                        balancer = capm.Capm(48, SELECTION, exp, cov)
+                        balancer.init()
                         w = balancer.fit_weights()
                         weights[pos_mask] = w
                     if close_pos:
