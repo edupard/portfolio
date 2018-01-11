@@ -13,13 +13,37 @@ import pickle
 import utils.folders as folders
 import utils.utils as utils
 
+# # store yearly stocks data to temporary folder
+# # mon
+# PREDICTION_DATE = datetime.datetime.strptime('2017-12-11', '%Y-%m-%d').date()
+# # prev mon
+# ONE_WEEK_DATE = datetime.datetime.strptime('2017-12-04', '%Y-%m-%d').date()
+# # thursday
+# ONE_DAY_DATE = datetime.datetime.strptime('2017-12-07', '%Y-%m-%d').date()
+# # fri
+# BM_DATE = datetime.datetime.strptime('2017-12-08', '%Y-%m-%d').date()
+# # mon
+# OPEN_POS_DATE = datetime.datetime.strptime('2017-12-11', '%Y-%m-%d').date()
+# # mon
+# HPR_DATE = datetime.datetime.strptime('2017-12-11', '%Y-%m-%d').date()
+#
+
+
+
 # store yearly stocks data to temporary folder
-PREDICTION_DATE = datetime.datetime.strptime('2017-12-04', '%Y-%m-%d').date()
-ONE_WEEK_DATE = datetime.datetime.strptime('2017-11-27', '%Y-%m-%d').date()
-ONE_DAY_DATE = datetime.datetime.strptime('2017-11-30', '%Y-%m-%d').date()
-BM_DATE = datetime.datetime.strptime('2017-12-01', '%Y-%m-%d').date()
-OPEN_POS_DATE = datetime.datetime.strptime('2017-12-04', '%Y-%m-%d').date()
-HPR_DATE = datetime.datetime.strptime('2017-12-04', '%Y-%m-%d').date()
+# mon
+PREDICTION_DATE = datetime.datetime.strptime('2017-12-18', '%Y-%m-%d').date()
+# prev mon
+ONE_WEEK_DATE = datetime.datetime.strptime('2017-12-11', '%Y-%m-%d').date()
+# thursday
+ONE_DAY_DATE = datetime.datetime.strptime('2017-12-14', '%Y-%m-%d').date()
+# fri
+BM_DATE = datetime.datetime.strptime('2017-12-15', '%Y-%m-%d').date()
+# mon
+OPEN_POS_DATE = datetime.datetime.strptime('2017-12-18', '%Y-%m-%d').date()
+# mon
+HPR_DATE = datetime.datetime.strptime('2017-12-18', '%Y-%m-%d').date()
+
 
 
 config.get_config().FOLDER = config.TEMP_TOD_FOLDER
